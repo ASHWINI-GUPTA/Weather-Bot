@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
@@ -16,16 +17,33 @@ namespace WeatherBot
         /// </summary>
         public async Task<HttpResponseMessage> Post([FromBody]Activity activity)
         {
-            if (activity.Type == ActivityTypes.Message)
+            try
             {
-                await Conversation.SendAsync(activity, () => new Dialogs.RootDialog());
+                ConnectorClient connector = new ConnectorClient(new
+                Uri(activity.ServiceUrl));
+                if (activity != null && activity.Type ==
+                ActivityTypes.Message)
+                {
+                    var text = (activity.Text).ToLower();
+                    await Conversation.SendAsync(activity, () => new
+                    WeatherDialog());
+                }
+                else
+                {
+                    HandleSystemMessage(activity);
+                }
+                return new
+                HttpResponseMessage
+                (HttpStatusCode.Accepted);
             }
-            else
+            catch (Exception ex)
             {
-                HandleSystemMessage(activity);
+                var content = new StringContent(ex.Message);
+                var responseMessage = new HttpResponseMessage
+                (HttpStatusCode.InternalServerError);
+                responseMessage.Content = content;
+                return responseMessage;
             }
-            var response = Request.CreateResponse(HttpStatusCode.OK);
-            return response;
         }
 
         private Activity HandleSystemMessage(Activity message)
